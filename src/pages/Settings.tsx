@@ -1,9 +1,23 @@
-import { Button, Card, Col, Form, Input, Row, Select, Space, Switch } from "antd";
+import { useState } from "react";
+import { Button, Card, Col, Form, Input, Row, Select, Space, Switch, message } from "antd";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ctx } from "@/lib/mockApi";
 import { GOLD, NAVY } from "@/lib/theme";
+import { seedDatabase } from "@/lib/seed";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Settings() {
+  const { signOut, session } = useAuth();
+  const [seeding, setSeeding] = useState(false);
+
+  async function handleSeed() {
+    setSeeding(true);
+    const { ok, errors } = await seedDatabase();
+    setSeeding(false);
+    if (ok) message.success("Placeholder data seeded to Supabase!");
+    else message.error(`Seed errors: ${errors.join(", ")}`);
+  }
+
   return (
     <div>
       <PageHeader title="Settings" subtitle="Branch context, profile & preferences" />
@@ -41,8 +55,14 @@ export default function Settings() {
               </div>
             ))}
             <div style={{ fontSize: 12, opacity: 0.7, marginTop: 12 }}>
-              Replace the mock layer in <code>src/lib/mockApi.ts</code> with calls to <code>https://api.cizaro.com</code> when ready.
+              Connected to Supabase. Seed placeholder data or sign out below.
             </div>
+            <Space style={{ marginTop: 16 }}>
+              <Button loading={seeding} onClick={handleSeed} style={{ background: GOLD, borderColor: GOLD, color: NAVY, fontWeight: 600 }}>
+                Seed Data to Supabase
+              </Button>
+              <Button danger onClick={signOut}>Sign Out ({session?.user?.email})</Button>
+            </Space>
           </Card>
         </Col>
       </Row>

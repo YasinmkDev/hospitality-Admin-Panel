@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { ConfigProvider, App as AntdApp } from "antd";
 import { lightTheme } from "@/lib/theme";
 import AdminLayout from "@/components/layout/AdminLayout";
+import Login from "./pages/Login";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Floors from "./pages/Floors";
 import Rooms from "./pages/Rooms";
@@ -22,13 +24,21 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+  if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ConfigProvider theme={lightTheme}>
       <AntdApp>
         <BrowserRouter>
           <Routes>
-            <Route element={<AdminLayout />}>
+            <Route path="/login" element={<Login />} />
+            <Route element={<AuthGuard><AdminLayout /></AuthGuard>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/floors" element={<Floors />} />
               <Route path="/rooms" element={<Rooms />} />
