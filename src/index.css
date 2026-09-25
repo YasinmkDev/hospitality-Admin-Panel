@@ -57,3 +57,22 @@
 
 /* Numeric tabular */
 .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Sidebar scrollbar */
+.ant-layout-sider *::-webkit-scrollbar,
+.ant-drawer-body *::-webkit-scrollbar {
+  width: 4px;
+}
+.ant-layout-sider *::-webkit-scrollbar-track,
+.ant-drawer-body *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ant-layout-sider *::-webkit-scrollbar-thumb,
+.ant-drawer-body *::-webkit-scrollbar-thumb {
+  background: rgba(201,166,107,0.35);
+  border-radius: 4px;
+}
+.ant-layout-sider *::-webkit-scrollbar-thumb:hover,
+.ant-drawer-body *::-webkit-scrollbar-thumb:hover {
+  background: rgba(201,166,107,0.65);
+}

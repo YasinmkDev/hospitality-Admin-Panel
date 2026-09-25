@@ -36,7 +36,7 @@ const ALL_NAV_ITEMS = [
 ];
 
 // Build grouped Ant Menu items from a filtered flat list
-function buildMenuItems(items: typeof ALL_NAV_ITEMS) {
+function buildMenuItems(items: typeof ALL_NAV_ITEMS, collapsed = false) {
   const groups: Record<string, typeof ALL_NAV_ITEMS> = {};
   const ungrouped: typeof ALL_NAV_ITEMS = [];
 
@@ -53,7 +53,7 @@ function buildMenuItems(items: typeof ALL_NAV_ITEMS) {
   Object.entries(groups).forEach(([group, children]) => {
     result.push({
       type: "group",
-      label: group,
+      label: collapsed ? null : <span style={{ fontSize: 10, letterSpacing: 1.5, opacity: 0.45 }}>{group}</span>,
       children: children.map((i) => ({
         key: i.key, icon: i.icon, label: <Link to={i.key}>{i.label}</Link>,
       })),
@@ -108,11 +108,11 @@ export default function AdminLayout() {
       )
     : ALL_NAV_ITEMS;
 
-  const menuItems = buildMenuItems(filteredItems);
+  const menuItems = buildMenuItems(filteredItems, collapsed);
 
   // ── Sidebar content ───────────────────────────────────────────────────
   const sidebarContent = (
-    <>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       {/* Brand */}
       <div style={{
         height: 68, display: "flex", alignItems: "center", gap: 12,
@@ -179,10 +179,10 @@ export default function AdminLayout() {
           mode="inline"
           selectedKeys={[loc.pathname]}
           items={menuItems as any}
-          style={{ background: NAVY, borderInlineEnd: 0, padding: "8px 8px", flex: 1, overflowY: "auto" }}
+          style={{ background: NAVY, borderInlineEnd: 0, padding: "8px 8px", flex: 1, overflowY: "auto", minHeight: 0 }}
         />
       )}
-    </>
+    </div>
   );
 
   return (
@@ -194,7 +194,7 @@ export default function AdminLayout() {
           style={{
             background: NAVY, borderRight: "1px solid rgba(255,255,255,0.06)",
             position: "sticky", top: 0, height: "100vh",
-            display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 20,
+            display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 20, overflowY: "auto",
           }}
         >
           {sidebarContent}
