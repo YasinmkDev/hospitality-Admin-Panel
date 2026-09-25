@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -12,8 +12,15 @@ import {
   Switch,
   Tag,
   message,
+  Pagination,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, CloudFilled } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  CloudFilled,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/common/PageHeader";
 import { CardGridSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
@@ -26,20 +33,38 @@ const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep
 export default function Seasons() {
   const [loading, setLoading] = useState(true);
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Season | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.season.list().then((res) => {
-      setSeasons(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.season.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["seasonName", "description"],
+        sortBy: "startMonth",
+        sortOrder: "asc",
+      });
+      setSeasons(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading seasons:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const onSave = async () => {
     const v = await form.validateFields();
@@ -62,19 +87,32 @@ export default function Seasons() {
           title="Seasons & Periods"
           subtitle="Define peak, shoulder, and low-season periods for rate multipliers"
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: NAVY, borderColor: NAVY }}
-          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          New Season
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search season name..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-64 text-xs rounded-lg"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            New Season
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -217,6 +255,24 @@ export default function Seasons() {
             ))}
           </Row>
         </>
+      )}
+
+      {/* Pagination Footer */}
+      {!loading && seasons.length > 0 && (
+        <div className="flex justify-end p-3 bg-white rounded-xl shadow-xs mt-4">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            pageSizeOptions={["8", "16", "32"]}
+            onChange={(p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            }}
+            showTotal={(tot) => `Total ${tot} seasonal periods`}
+          />
+        </div>
       )}
 
       {/* Responsive Modal */}

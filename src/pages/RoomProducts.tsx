@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -15,7 +15,13 @@ import {
   Tag,
   message,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, ShoppingFilled } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  ShoppingFilled,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TableSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
 import { api, ctx, newId } from "@/lib/mockApi";
@@ -26,19 +32,40 @@ export default function RoomProducts() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<RoomProduct[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RoomProduct | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.roomProduct.list().then((res) => {
-      setProducts(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.roomProduct.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["name"],
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+      setProducts(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading products:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
   }, []);
 
@@ -134,19 +161,32 @@ export default function RoomProducts() {
           title="Room Products & Add-Ons"
           subtitle="Minibar selections, amenity packages, and guest enhancement items"
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: NAVY, borderColor: NAVY }}
-          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          New Product
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search product..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-64 text-xs rounded-lg"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            New Product
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -168,7 +208,19 @@ export default function RoomProducts() {
             rowKey="rRoomProductsId"
             dataSource={products}
             columns={cols}
-            pagination={{ pageSize: 10, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} room products`,
+              responsive: true,
+            }}
             scroll={{ x: 600 }}
           />
         </Card>

@@ -1,6 +1,26 @@
-import { useEffect, useState } from "react";
-import { Button, Card, Col, Drawer, Form, Input, InputNumber, Popconfirm, Row, Switch, Tag, message } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, AppstoreOutlined } from "@ant-design/icons";
+import { useEffect, useState, useCallback } from "react";
+import {
+  Button,
+  Card,
+  Col,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Popconfirm,
+  Row,
+  Switch,
+  Tag,
+  message,
+  Pagination,
+} from "antd";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  AppstoreOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/common/PageHeader";
 import CustomFieldsEditor from "@/components/common/CustomFieldsEditor";
@@ -13,19 +33,40 @@ export default function Floors() {
   const [loading, setLoading] = useState(true);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Floor | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.floor.list().then((res) => {
-      setFloors(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.floor.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["floorName", "description"],
+        sortBy: "floorNumber",
+        sortOrder: "asc",
+      });
+      setFloors(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading floors:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
   }, []);
 
@@ -69,19 +110,32 @@ export default function Floors() {
           title="Floor Levels"
           subtitle="Configure physical floors, room counts, and level occupancy"
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: NAVY, borderColor: NAVY }}
-          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          New Floor
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search level name..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-56 text-xs rounded-lg"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            New Floor
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -197,6 +251,24 @@ export default function Floors() {
             );
           })}
         </Row>
+      )}
+
+      {/* Pagination Footer */}
+      {!loading && floors.length > 0 && (
+        <div className="flex justify-end p-3 bg-white rounded-xl shadow-xs mt-4">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            pageSizeOptions={["8", "16", "32"]}
+            onChange={(p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            }}
+            showTotal={(tot) => `Total ${tot} floor levels`}
+          />
+        </div>
       )}
 
       {/* Responsive Floor Drawer */}

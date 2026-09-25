@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -14,7 +14,13 @@ import {
   Tag,
   message,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, StarFilled } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  StarFilled,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TableSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
 import { api, ctx, newId } from "@/lib/mockApi";
@@ -25,19 +31,40 @@ export default function RoomFeatures() {
   const [loading, setLoading] = useState(true);
   const [features, setFeatures] = useState<RoomFeature[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RoomFeature | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.roomFeature.list().then((res) => {
-      setFeatures(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.roomFeature.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["name"],
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+      setFeatures(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading features:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
   }, []);
 
@@ -126,19 +153,32 @@ export default function RoomFeatures() {
           title="Room Features & Amenities"
           subtitle="Catalogue of in-room luxury amenities and architectural highlights"
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: NAVY, borderColor: NAVY }}
-          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          New Feature
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search feature..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-64 text-xs rounded-lg"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            New Feature
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -160,7 +200,19 @@ export default function RoomFeatures() {
             rowKey="rRoomFeaturesId"
             dataSource={features}
             columns={cols}
-            pagination={{ pageSize: 10, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} room features`,
+              responsive: true,
+            }}
             scroll={{ x: 550 }}
           />
         </Card>

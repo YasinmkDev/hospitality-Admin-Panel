@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -15,6 +15,7 @@ import {
   Tag,
   Timeline,
   message,
+  Pagination,
 } from "antd";
 import {
   BellFilled,
@@ -24,6 +25,8 @@ import {
   PlusOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
+  SearchOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -36,19 +39,45 @@ export default function Reminders() {
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState<RoomReminder[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [search, setSearch] = useState("");
+  const [filterDone, setFilterDone] = useState<boolean | undefined>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RoomReminder | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.reminder.list().then((res) => {
-      setList(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const filters: Record<string, unknown> = {};
+      if (filterDone !== undefined) filters.isDone = filterDone;
+
+      const res = await api.reminder.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["reminderSubject", "reminderDescription"],
+        filters,
+        sortBy: "reminderStartingTime",
+        sortOrder: "desc",
+      });
+      setList(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading reminders:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search, filterDone]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
   }, []);
 
@@ -98,6 +127,54 @@ export default function Reminders() {
           New Reminder
         </Button>
       </div>
+
+      {/* Filter Toolbar */}
+      <Card className="cz-card-shadow mb-5" style={{ border: 0 }} styles={{ body: { padding: "14px 18px" } }}>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search reminder subject..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-64 text-xs rounded-lg"
+          />
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+            <FilterOutlined /> Status:
+          </div>
+          <Select
+            allowClear
+            placeholder="All Alerts"
+            className="w-36 text-xs"
+            value={filterDone === undefined ? undefined : filterDone ? "done" : "pending"}
+            onChange={(v) => {
+              setFilterDone(v === "done" ? true : v === "pending" ? false : undefined);
+              setPage(1);
+            }}
+            options={[
+              { value: "pending", label: "Pending" },
+              { value: "done", label: "Completed" },
+            ]}
+          />
+          {(filterDone !== undefined || search) && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setFilterDone(undefined);
+                setSearch("");
+                setPage(1);
+              }}
+              className="text-xs text-slate-500"
+            >
+              Reset Filters
+            </Button>
+          )}
+        </div>
+      </Card>
 
       {loading ? (
         <ListSkeleton count={5} />
@@ -212,6 +289,24 @@ export default function Reminders() {
             })}
           />
         </Card>
+      )}
+
+      {/* Pagination Footer */}
+      {!loading && list.length > 0 && (
+        <div className="flex justify-end p-3 bg-white rounded-xl shadow-xs mt-4">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            showSizeChanger
+            pageSizeOptions={["8", "16", "32"]}
+            onChange={(p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            }}
+            showTotal={(tot) => `Total ${tot} operational alerts`}
+          />
+        </div>
       )}
 
       {/* Responsive Modal */}

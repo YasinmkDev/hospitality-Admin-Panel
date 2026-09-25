@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Card,
@@ -15,7 +15,13 @@ import {
   Tag,
   message,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, FilterOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  FilterOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import CustomFieldsEditor from "@/components/common/CustomFieldsEditor";
 import { TableSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
@@ -28,27 +34,48 @@ export default function Beds() {
   const [beds, setBeds] = useState<Bed[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
+  const [search, setSearch] = useState("");
   const [filterFloor, setFilterFloor] = useState<string>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Bed | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.bed.list().then((res) => {
-      setBeds(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const filters: Record<string, unknown> = {};
+      if (filterFloor) filters.floor = filterFloor;
+
+      const res = await api.bed.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["number", "remarks"],
+        filters,
+        sortBy: "number",
+        sortOrder: "asc",
+      });
+      setBeds(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading beds:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search, filterFloor]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
     api.floor.list().then(setFloors);
   }, []);
-
-  const filtered = useMemo(() => {
-    return beds.filter((b) => !filterFloor || b.floor === filterFloor);
-  }, [beds, filterFloor]);
 
   const onSave = async () => {
     const v = await form.validateFields();
@@ -166,7 +193,18 @@ export default function Beds() {
         style={{ border: 0 }}
         styles={{ body: { padding: "14px 18px" } }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search bed # or remarks..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-56 text-xs rounded-lg"
+          />
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0B1F3A]">
             <FilterOutlined /> Filter Level:
           </div>
@@ -175,15 +213,32 @@ export default function Beds() {
             placeholder="All Floors"
             className="w-48 text-xs"
             value={filterFloor}
-            onChange={setFilterFloor}
+            onChange={(v) => {
+              setFilterFloor(v);
+              setPage(1);
+            }}
             options={floors.map((f) => ({ value: f.floorId, label: f.floorName }))}
           />
+          {(filterFloor || search) && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setFilterFloor(undefined);
+                setSearch("");
+                setPage(1);
+              }}
+              className="text-xs text-slate-500"
+            >
+              Reset Filters
+            </Button>
+          )}
         </div>
       </Card>
 
       {loading ? (
         <TableSkeleton columns={6} rows={6} />
-      ) : filtered.length === 0 ? (
+      ) : beds.length === 0 ? (
         <EmptyState
           title="No beds registered"
           description="Add beds to track individual bed assignments for guest rooms."
@@ -198,9 +253,21 @@ export default function Beds() {
         <Card className="cz-card-shadow" style={{ border: 0 }} styles={{ body: { padding: 0 } }}>
           <Table
             rowKey="bedId"
-            dataSource={filtered}
+            dataSource={beds}
             columns={cols}
-            pagination={{ pageSize: 12, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} beds`,
+              responsive: true,
+            }}
             scroll={{ x: 620 }}
           />
         </Card>

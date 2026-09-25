@@ -1,8 +1,14 @@
 import { Button, Form, Input } from "antd";
+import type { FormInstance } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
+export interface CustomFieldsEditorProps {
+  name?: string;
+  form?: FormInstance;
+}
+
 // Editable JSON-ish key/value editor for `customFields`
-export default function CustomFieldsEditor({ name = "customFields" }: { name?: string }) {
+export default function CustomFieldsEditor({ name = "customFields" }: CustomFieldsEditorProps) {
   return (
     <Form.List name={name}>
       {(fields, { add, remove }) => (

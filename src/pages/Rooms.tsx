@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Button,
   Col,
@@ -18,6 +18,7 @@ import {
   Card,
   Tabs,
   Avatar,
+  Pagination,
 } from "antd";
 import {
   DeleteOutlined,
@@ -26,6 +27,7 @@ import {
   FilterOutlined,
   HomeFilled,
   EyeOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -50,37 +52,53 @@ export default function Rooms() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [types, setTypes] = useState<RoomType[]>([]);
   const [view, setView] = useState<"Table" | "Cards">("Table");
+  const [search, setSearch] = useState("");
   const [filterFloor, setFilterFloor] = useState<string>();
   const [filterType, setFilterType] = useState<string>();
   const [filterStatus, setFilterStatus] = useState<string>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<Room | null>(null);
   const [editing, setEditing] = useState<Room | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.room.list().then((res) => {
-      setRooms(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const filters: Record<string, unknown> = {};
+      if (filterFloor) filters.floor = filterFloor;
+      if (filterType) filters.roomTypeId = filterType;
+      if (filterStatus) filters.reservationStatus = filterStatus;
+
+      const res = await api.room.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["number", "remarks", "phoneExtension"],
+        filters,
+        sortBy: "number",
+        sortOrder: "asc",
+      });
+      setRooms(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading rooms:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search, filterFloor, filterType, filterStatus]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.floor.list().then(setFloors);
     api.roomType.list().then(setTypes);
   }, []);
-
-  const filtered = useMemo(
-    () =>
-      rooms.filter(
-        (r) =>
-          (!filterFloor || r.floor === filterFloor) &&
-          (!filterType || r.roomTypeId === filterType) &&
-          (!filterStatus || r.reservationStatus === filterStatus)
-      ),
-    [rooms, filterFloor, filterType, filterStatus]
-  );
 
   const typeName = (id: string) => types.find((t) => t.roomTypeId === id)?.roomType ?? "—";
   const floorName = (id: string) => floors.find((f) => f.floorId === id)?.floorName ?? "—";
@@ -235,6 +253,17 @@ export default function Rooms() {
         styles={{ body: { padding: "14px 18px" } }}
       >
         <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search room # or notes..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            className="w-48 sm:w-56 text-xs rounded-lg"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+          />
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0B1F3A]">
             <FilterOutlined /> Filter By:
           </div>
@@ -243,7 +272,10 @@ export default function Rooms() {
             placeholder="All Floors"
             className="w-36 sm:w-44 text-xs"
             value={filterFloor}
-            onChange={setFilterFloor}
+            onChange={(v) => {
+              setFilterFloor(v);
+              setPage(1);
+            }}
             options={floors.map((f) => ({ value: f.floorId, label: f.floorName }))}
           />
           <Select
@@ -251,7 +283,10 @@ export default function Rooms() {
             placeholder="All Room Types"
             className="w-36 sm:w-44 text-xs"
             value={filterType}
-            onChange={setFilterType}
+            onChange={(v) => {
+              setFilterType(v);
+              setPage(1);
+            }}
             options={types.map((t) => ({ value: t.roomTypeId, label: t.roomType }))}
           />
           <Select
@@ -259,13 +294,16 @@ export default function Rooms() {
             placeholder="Live Status"
             className="w-32 sm:w-40 text-xs"
             value={filterStatus}
-            onChange={setFilterStatus}
+            onChange={(v) => {
+              setFilterStatus(v);
+              setPage(1);
+            }}
             options={["Available", "Reserved", "Occupied", "Cleaning"].map((s) => ({
               value: s,
               label: s,
             }))}
           />
-          {(filterFloor || filterType || filterStatus) && (
+          {(filterFloor || filterType || filterStatus || search) && (
             <Button
               type="link"
               size="small"
@@ -273,6 +311,8 @@ export default function Rooms() {
                 setFilterFloor(undefined);
                 setFilterType(undefined);
                 setFilterStatus(undefined);
+                setSearch("");
+                setPage(1);
               }}
               className="text-xs text-slate-500"
             >
@@ -289,7 +329,7 @@ export default function Rooms() {
         ) : (
           <CardGridSkeleton count={8} />
         )
-      ) : filtered.length === 0 ? (
+      ) : rooms.length === 0 ? (
         <EmptyState
           title="No rooms match your filter"
           description="Try clearing your status or floor filter, or register a new room."
@@ -304,62 +344,90 @@ export default function Rooms() {
         <Card className="cz-card-shadow" style={{ border: 0 }} styles={{ body: { padding: 0 } }}>
           <Table
             rowKey="roomId"
-            dataSource={filtered}
+            dataSource={rooms}
             columns={columns}
-            pagination={{ pageSize: 12, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "12", "24", "48"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} rooms`,
+              responsive: true,
+            }}
             scroll={{ x: 720 }}
           />
         </Card>
       ) : (
-        <Row gutter={[16, 16]}>
-          {filtered.map((r, i) => {
-            const t = types.find((tp) => tp.roomTypeId === r.roomTypeId);
-            return (
-              <Col xs={12} sm={8} md={6} lg={4} key={r.roomId}>
-                <motion.div
-                  whileHover={{ y: -4 }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.02 }}
-                >
-                  <Card
-                    hoverable
-                    styles={{ body: { padding: 14 } }}
-                    onClick={() => setDetail(r)}
-                    className="border-0 shadow-sm rounded-xl overflow-hidden cursor-pointer"
+        <div className="space-y-6">
+          <Row gutter={[16, 16]}>
+            {rooms.map((r, i) => {
+              const t = types.find((tp) => tp.roomTypeId === r.roomTypeId);
+              return (
+                <Col xs={12} sm={8} md={6} lg={4} key={r.roomId}>
+                  <motion.div
+                    whileHover={{ y: -4 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.02 }}
                   >
-                    <div
-                      style={{
-                        height: 72,
-                        borderRadius: 10,
-                        background: `linear-gradient(135deg, ${numberToHex(t?.color)}, ${NAVY})`,
-                        color: "#fff",
-                        display: "grid",
-                        placeItems: "center",
-                        fontFamily: "'Fraunces', serif",
-                        fontSize: 24,
-                        fontWeight: 700,
-                      }}
+                    <Card
+                      hoverable
+                      styles={{ body: { padding: 14 } }}
+                      onClick={() => setDetail(r)}
+                      className="border-0 shadow-sm rounded-xl overflow-hidden cursor-pointer"
                     >
-                      {r.number}
-                    </div>
-                    <div className="mt-2.5 flex items-center justify-between gap-1">
-                      <span className="text-xs text-slate-500 truncate" title={t?.roomType}>
-                        {t?.roomType}
-                      </span>
-                      <Tag
-                        color={statusColor(r.reservationStatus)}
-                        className="text-[10px] m-0 border-0 font-medium"
+                      <div
+                        style={{
+                          height: 72,
+                          borderRadius: 10,
+                          background: `linear-gradient(135deg, ${numberToHex(t?.color)}, ${NAVY})`,
+                          color: "#fff",
+                          display: "grid",
+                          placeItems: "center",
+                          fontFamily: "'Fraunces', serif",
+                          fontSize: 24,
+                          fontWeight: 700,
+                        }}
                       >
-                        {r.reservationStatus || "Available"}
-                      </Tag>
-                    </div>
-                  </Card>
-                </motion.div>
-              </Col>
-            );
-          })}
-        </Row>
+                        {r.number}
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between gap-1">
+                        <span className="text-xs text-slate-500 truncate" title={t?.roomType}>
+                          {t?.roomType}
+                        </span>
+                        <Tag
+                          color={statusColor(r.reservationStatus)}
+                          className="text-[10px] m-0 border-0 font-medium"
+                        >
+                          {r.reservationStatus || "Available"}
+                        </Tag>
+                      </div>
+                    </Card>
+                  </motion.div>
+                </Col>
+              );
+            })}
+          </Row>
+          <div className="flex justify-end p-2 bg-white rounded-xl shadow-xs">
+            <Pagination
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              showSizeChanger
+              pageSizeOptions={["12", "24", "48"]}
+              onChange={(p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              }}
+              showTotal={(tot) => `Total ${tot} rooms`}
+            />
+          </div>
+        </div>
       )}
 
       {/* Room Drawer Form */}

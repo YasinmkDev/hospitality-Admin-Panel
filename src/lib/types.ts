@@ -193,3 +193,21 @@ export const HK_STATUS_LABELS: Record<number, string> = {
   1: "In Progress",
   2: "Done",
 };
+
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  searchFields?: string[];
+  filters?: Record<string, unknown>;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}

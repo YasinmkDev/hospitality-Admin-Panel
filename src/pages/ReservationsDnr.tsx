@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Avatar,
   Button,
@@ -13,7 +13,13 @@ import {
   Tag,
   message,
 } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  StopOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { TableSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
 import { api, ctx, newId } from "@/lib/mockApi";
@@ -23,20 +29,38 @@ import { NAVY, STATUS } from "@/lib/theme";
 export default function ReservationsDnr() {
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState<RoomEntryDnr[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RoomEntryDnr | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.dnr.list().then((res) => {
-      setList(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.dnr.paginate({
+        page,
+        pageSize,
+        search,
+        searchFields: ["customerName", "reason"],
+        sortBy: "customerName",
+        sortOrder: "asc",
+      });
+      setList(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading DNRs:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const onSave = async () => {
     const v = await form.validateFields();
@@ -126,19 +150,32 @@ export default function ReservationsDnr() {
           title="Do Not Rent (DNR) Registry"
           subtitle="Restricted guest registry to protect hotel property, staff, and guests"
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          style={{ background: NAVY, borderColor: NAVY }}
-          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          Add DNR Flag
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Search guest or reason..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            allowClear
+            className="w-48 sm:w-64 text-xs rounded-lg"
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setOpen(true);
+            }}
+          >
+            Add DNR Flag
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -160,7 +197,19 @@ export default function ReservationsDnr() {
             rowKey="roomEntryDnrId"
             dataSource={list}
             columns={cols}
-            pagination={{ pageSize: 10, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} flagged records`,
+              responsive: true,
+            }}
             scroll={{ x: 550 }}
           />
         </Card>

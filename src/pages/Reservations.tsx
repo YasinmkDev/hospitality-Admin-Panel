@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Avatar,
   Button,
@@ -45,33 +45,46 @@ export default function Reservations() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchGuest, setSearchGuest] = useState("");
   const [statusFilter, setStatusFilter] = useState<number | undefined>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<RoomEntry | null>(null);
   const [editing, setEditing] = useState<RoomEntry | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => {
-    return api.reservation.list().then((res) => {
-      setList(res);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const filters: Record<string, unknown> = {};
+      if (statusFilter !== undefined) filters.reservationStatus = statusFilter;
+
+      const res = await api.reservation.paginate({
+        page,
+        pageSize,
+        search: searchGuest,
+        searchFields: ["customerName", "registrationNo", "voucherNo", "remarks"],
+        filters,
+        sortBy: "arrivalDate",
+        sortOrder: "desc",
+      });
+      setList(res.data);
+      setTotal(res.total);
+    } catch (err) {
+      console.error("Failed loading reservations:", err);
+    } finally {
       setLoading(false);
-    });
-  };
+    }
+  }, [page, pageSize, searchGuest, statusFilter]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  useEffect(() => {
     api.room.list().then(setRooms);
   }, []);
-
-  const filtered = useMemo(() => {
-    return list.filter((r) => {
-      const matchSearch =
-        !searchGuest ||
-        r.customerName?.toLowerCase().includes(searchGuest.toLowerCase()) ||
-        r.registrationNo?.toLowerCase().includes(searchGuest.toLowerCase());
-      const matchStatus = statusFilter === undefined || r.reservationStatus === statusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [list, searchGuest, statusFilter]);
 
   const onSave = async () => {
     const v = await form.validateFields();
@@ -259,7 +272,10 @@ export default function Reservations() {
             placeholder="Search guest or reg #..."
             className="w-full sm:w-64 text-xs rounded-xl"
             value={searchGuest}
-            onChange={(e) => setSearchGuest(e.target.value)}
+            onChange={(e) => {
+              setSearchGuest(e.target.value);
+              setPage(1);
+            }}
           />
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
             <FilterOutlined /> Status:
@@ -269,7 +285,10 @@ export default function Reservations() {
             placeholder="All Statuses"
             className="w-36 text-xs"
             value={statusFilter}
-            onChange={setStatusFilter}
+            onChange={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
             options={[
               { value: 0, label: "Reserved" },
               { value: 1, label: "Checked-In" },
@@ -277,12 +296,26 @@ export default function Reservations() {
               { value: 3, label: "Cancelled" },
             ]}
           />
+          {(statusFilter !== undefined || searchGuest) && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                setStatusFilter(undefined);
+                setSearchGuest("");
+                setPage(1);
+              }}
+              className="text-xs text-slate-500"
+            >
+              Reset Filters
+            </Button>
+          )}
         </div>
       </Card>
 
       {loading ? (
         <TableSkeleton columns={7} rows={6} />
-      ) : filtered.length === 0 ? (
+      ) : list.length === 0 ? (
         <EmptyState
           title="No reservations found"
           description="Create a new guest booking or clear your search criteria."
@@ -297,9 +330,21 @@ export default function Reservations() {
         <Card className="cz-card-shadow" style={{ border: 0 }} styles={{ body: { padding: 0 } }}>
           <Table
             rowKey="roomEntryId"
-            dataSource={filtered}
+            dataSource={list}
             columns={cols}
-            pagination={{ pageSize: 10, responsive: true }}
+            pagination={{
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: ["10", "20", "50"],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+              showTotal: (tot) => `Total ${tot} reservations`,
+              responsive: true,
+            }}
             scroll={{ x: 840 }}
           />
         </Card>
