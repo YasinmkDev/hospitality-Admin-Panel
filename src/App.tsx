@@ -38,6 +38,9 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Login />} />
+            <Route path="/forgot-password" element={<Login />} />
+            <Route path="/reset-password" element={<Login />} />
             <Route element={<AuthGuard><AdminLayout /></AuthGuard>}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/floors" element={<Floors />} />

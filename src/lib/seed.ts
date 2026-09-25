@@ -1,9 +1,20 @@
-// Run once to seed Supabase with placeholder data.
-// Call seedDatabase() from a button in Settings or run via browser console.
-import { supabase } from "./supabase";
+// Run once to seed database with placeholder data.
+// Call seedDatabase() from Settings or run via browser console.
+import { supabase, isSupabaseConfigured } from "./supabase";
+import { resetLocalStoreToDefaults } from "./supabaseApi";
 import {
-  floors, roomTypes, rooms, beds, seasons, rates,
-  features, products, reminders, reservations, dnrs, housekeeping,
+  floors,
+  roomTypes,
+  rooms,
+  beds,
+  seasons,
+  rates,
+  features,
+  products,
+  reminders,
+  reservations,
+  dnrs,
+  housekeeping,
 } from "./mockData";
 
 type SeedTable = { table: string; rows: Record<string, unknown>[] };
@@ -24,8 +35,14 @@ const tables: SeedTable[] = [
 ];
 
 export async function seedDatabase(): Promise<{ ok: boolean; errors: string[] }> {
-  const errors: string[] = [];
+  // Always reset local storage store to fresh default data
+  resetLocalStoreToDefaults();
 
+  if (!isSupabaseConfigured) {
+    return { ok: true, errors: [] };
+  }
+
+  const errors: string[] = [];
   for (const { table, rows } of tables) {
     const { error } = await supabase.from(table).upsert(rows as never[], { ignoreDuplicates: true });
     if (error) errors.push(`${table}: ${error.message}`);

@@ -1,0 +1,6 @@
+{
+  "name": "Hospitality Admin Panel",
+  "description": "Comprehensive hotel and hospitality management admin panel for rooms, reservations, housekeeping, floors, beds, and rates.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

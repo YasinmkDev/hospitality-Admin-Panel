@@ -4,18 +4,26 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, AppstoreOutlined } from "@a
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/common/PageHeader";
 import CustomFieldsEditor from "@/components/common/CustomFieldsEditor";
+import { CardGridSkeleton, EmptyState } from "@/components/common/SkeletonLoaders";
 import { api, ctx, newId } from "@/lib/mockApi";
 import { GOLD, NAVY } from "@/lib/theme";
 import type { Floor, Room } from "@/lib/types";
 
 export default function Floors() {
+  const [loading, setLoading] = useState(true);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Floor | null>(null);
   const [form] = Form.useForm();
 
-  const load = () => { api.floor.list().then(setFloors); };
+  const load = () => {
+    return api.floor.list().then((res) => {
+      setFloors(res);
+      setLoading(false);
+    });
+  };
+
   useEffect(() => {
     load();
     api.room.list().then(setRooms);
@@ -23,7 +31,7 @@ export default function Floors() {
 
   const onSave = async () => {
     const v = await form.validateFields();
-    const cf = (v.customFields || []).reduce((a: any, x: any) => ({ ...a, [x.key]: x.value }), {});
+    const cf = (v.customFields || []).reduce((a: Record<string, string>, x: { key: string; value: string }) => ({ ...a, [x.key]: x.value }), {});
     const payload: Floor = {
       floorId: editing?.floorId || newId(),
       ...ctx,
@@ -33,7 +41,10 @@ export default function Floors() {
     if (editing) await api.floor.update(payload);
     else await api.floor.add(payload);
     message.success(editing ? "Floor updated" : "Floor added");
-    setOpen(false); setEditing(null); form.resetFields(); load();
+    setOpen(false);
+    setEditing(null);
+    form.resetFields();
+    load();
   };
 
   const onEdit = (f: Floor) => {
@@ -53,116 +64,204 @@ export default function Floors() {
 
   return (
     <div>
-      <PageHeader
-        title="Floors"
-        subtitle="Manage every level of your property"
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <PageHeader
+          title="Floor Levels"
+          subtitle="Configure physical floors, room counts, and level occupancy"
+        />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          style={{ background: NAVY, borderColor: NAVY }}
+          className="rounded-xl h-9 font-medium shadow-sm w-full sm:w-auto"
+          onClick={() => {
+            setEditing(null);
+            form.resetFields();
+            setOpen(true);
+          }}
+        >
+          New Floor
+        </Button>
+      </div>
+
+      {loading ? (
+        <CardGridSkeleton count={4} />
+      ) : floors.length === 0 ? (
+        <EmptyState
+          title="No floors created yet"
+          description="Create your first floor level to begin allocating rooms and guest beds."
+          actionText="Add Floor"
+          onAction={() => {
+            setEditing(null);
+            form.resetFields();
+            setOpen(true);
+          }}
+        />
+      ) : (
+        <Row gutter={[16, 16]}>
+          {floors.map((f, i) => {
+            const fRooms = rooms.filter((r) => r.floor === f.floorId);
+            const occ = fRooms.filter((r) => r.isOccupied).length;
+            const pct = fRooms.length ? Math.round((occ / fRooms.length) * 100) : 0;
+            return (
+              <Col key={f.floorId} xs={24} sm={12} lg={8} xl={6}>
+                <motion.div
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  whileHover={{ y: -4 }}
+                >
+                  <Card
+                    className="cz-card-shadow"
+                    style={{ border: 0, overflow: "hidden" }}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    <div
+                      className="cz-grain"
+                      style={{
+                        padding: "20px 20px 16px",
+                        background: `linear-gradient(135deg, ${NAVY} 0%, #16315a 100%)`,
+                        color: "#fff",
+                      }}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <div className="text-slate-300 text-xs tracking-widest font-semibold uppercase">
+                            FLOOR {f.floorNumber}
+                          </div>
+                          <div
+                            className="font-serif text-xl sm:text-2xl mt-1 truncate"
+                            title={f.floorName}
+                          >
+                            {f.floorName}
+                          </div>
+                        </div>
+                        <AppstoreOutlined style={{ color: GOLD, fontSize: 20 }} className="shrink-0 mt-1" />
+                      </div>
+                      <Tag
+                        color={f.isActive ? "gold" : "default"}
+                        className="mt-3 text-xs font-medium"
+                        style={{ color: f.isActive ? NAVY : undefined }}
+                      >
+                        {f.isActive ? "Active Level" : "Archived"}
+                      </Tag>
+                    </div>
+
+                    <div className="p-5">
+                      <Row gutter={12}>
+                        <Col span={12}>
+                          <div className="text-[11px] text-slate-400 tracking-wider font-semibold">ROOMS</div>
+                          <div className="text-xl sm:text-2xl font-bold text-[#0B1F3A] tabular-nums mt-0.5">
+                            {f.numberRoomsOnFloor || fRooms.length}
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div className="text-[11px] text-slate-400 tracking-wider font-semibold">BEDS</div>
+                          <div className="text-xl sm:text-2xl font-bold text-[#0B1F3A] tabular-nums mt-0.5">
+                            {f.numberBedsOnFloor || 0}
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <div className="mt-3 text-xs text-slate-500 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                        <span>Live Occupancy</span>
+                        <span className="font-semibold text-[#0B1F3A]">
+                          {pct}% ({occ}/{fRooms.length})
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-2">
+                        <Button
+                          block
+                          icon={<EditOutlined />}
+                          onClick={() => onEdit(f)}
+                          className="rounded-lg text-xs h-8"
+                        >
+                          Edit
+                        </Button>
+                        <Popconfirm
+                          title="Delete floor?"
+                          description="Are you sure you want to remove this floor level?"
+                          onConfirm={() => onDelete(f.floorId)}
+                          okText="Delete"
+                          cancelText="Cancel"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <Button danger icon={<DeleteOutlined />} className="rounded-lg h-8 px-2.5" />
+                        </Popconfirm>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
+
+      {/* Responsive Floor Drawer */}
+      <Drawer
+        title={editing ? "Edit Floor Level" : "Create New Floor"}
+        width={typeof window !== "undefined" && window.innerWidth < 640 ? "100%" : 480}
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setEditing(null);
+          form.resetFields();
+        }}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => { setEditing(null); form.resetFields(); setOpen(true); }}>
-            New Floor
+          <Button
+            type="primary"
+            onClick={onSave}
+            style={{ background: NAVY, borderColor: NAVY }}
+            className="rounded-lg"
+          >
+            Save Floor
           </Button>
         }
-      />
-
-      <Row gutter={[20, 20]}>
-        {floors.map((f, i) => {
-          const fRooms = rooms.filter((r) => r.floor === f.floorId);
-          const occ = fRooms.filter((r) => r.isOccupied).length;
-          const pct = fRooms.length ? Math.round((occ / fRooms.length) * 100) : 0;
-          return (
-            <Col key={f.floorId} xs={24} sm={12} lg={8} xxl={6}>
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                whileHover={{ y: -4 }}
-              >
-                <Card
-                  className="cz-card-shadow"
-                  style={{ border: 0, overflow: "hidden" }}
-                  styles={{ body: { padding: 0 } }}
-                >
-                  <div
-                    className="cz-grain"
-                    style={{
-                      padding: "22px 22px 18px",
-                      background: `linear-gradient(135deg, ${NAVY} 0%, #16315a 100%)`,
-                      color: "#fff",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ opacity: 0.7, fontSize: 12, letterSpacing: 2 }}>FLOOR {f.floorNumber}</div>
-                        <div style={{ fontFamily: "'Fraunces', serif", fontSize: 24, marginTop: 4 }}>
-                          {f.floorName}
-                        </div>
-                      </div>
-                      <AppstoreOutlined style={{ color: GOLD, fontSize: 22 }} />
-                    </div>
-                    <Tag color={f.isActive ? "gold" : "default"} style={{ marginTop: 12, color: f.isActive ? NAVY : undefined }}>
-                      {f.isActive ? "Active" : "Inactive"}
-                    </Tag>
-                  </div>
-                  <div style={{ padding: 22 }}>
-                    <Row gutter={12}>
-                      <Col span={12}>
-                        <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: 1 }}>ROOMS</div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: NAVY }} className="tabular-nums">
-                          {f.numberRoomsOnFloor}
-                        </div>
-                      </Col>
-                      <Col span={12}>
-                        <div style={{ fontSize: 11, color: "#94a3b8", letterSpacing: 1 }}>BEDS</div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: NAVY }} className="tabular-nums">
-                          {f.numberBedsOnFloor}
-                        </div>
-                      </Col>
-                    </Row>
-                    <div style={{ marginTop: 14, fontSize: 12, color: "#64748b" }}>
-                      Occupancy <span style={{ color: NAVY, fontWeight: 600 }}>{pct}%</span> ({occ}/{fRooms.length})
-                    </div>
-                    <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-                      <Button block icon={<EditOutlined />} onClick={() => onEdit(f)}>Edit</Button>
-                      <Popconfirm title="Delete floor?" onConfirm={() => onDelete(f.floorId)}>
-                        <Button danger icon={<DeleteOutlined />} />
-                      </Popconfirm>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            </Col>
-          );
-        })}
-      </Row>
-
-      <Drawer
-        title={editing ? "Edit Floor" : "New Floor"}
-        width={520}
-        open={open}
-        onClose={() => { setOpen(false); setEditing(null); form.resetFields(); }}
-        extra={<Button type="primary" onClick={onSave}>Save</Button>}
       >
         <Form layout="vertical" form={form}>
-          <Form.Item label="Floor Name" name="floorName" rules={[{ required: true }]}>
-            <Input placeholder="e.g. Sky Lounge" />
+          <Form.Item
+            label="Floor Name"
+            name="floorName"
+            rules={[{ required: true, message: "Please provide a floor title" }]}
+          >
+            <Input placeholder="e.g. Garden Terrace" className="rounded-lg" />
           </Form.Item>
+
           <Row gutter={12}>
-            <Col span={8}>
-              <Form.Item label="Floor Number" name="floorNumber" rules={[{ required: true }]}>
-                <InputNumber style={{ width: "100%" }} />
+            <Col xs={24} sm={8}>
+              <Form.Item
+                label="Floor #"
+                name="floorNumber"
+                rules={[{ required: true, message: "Required" }]}
+              >
+                <InputNumber style={{ width: "100%" }} className="rounded-lg" min={0} />
               </Form.Item>
             </Col>
-            <Col span={8}>
-              <Form.Item label="# Rooms" name="numberRoomsOnFloor"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Rooms" name="numberRoomsOnFloor">
+                <InputNumber style={{ width: "100%" }} className="rounded-lg" min={0} />
+              </Form.Item>
             </Col>
-            <Col span={8}>
-              <Form.Item label="# Beds" name="numberBedsOnFloor"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Beds" name="numberBedsOnFloor">
+                <InputNumber style={{ width: "100%" }} className="rounded-lg" min={0} />
+              </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="Description" name="description"><Input.TextArea rows={3} /></Form.Item>
-          <Form.Item label="Active" name="isActive" valuePropName="checked" initialValue={true}>
+
+          <Form.Item label="Floor Description" name="description">
+            <Input.TextArea rows={3} placeholder="Floor amenities, elevator access notes..." className="rounded-lg" />
+          </Form.Item>
+
+          <Form.Item label="Level Active" name="isActive" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
-          <Form.Item label="Custom Fields"><CustomFieldsEditor /></Form.Item>
+
+          <Form.Item label="Custom Attributes">
+            <CustomFieldsEditor />
+          </Form.Item>
         </Form>
       </Drawer>
     </div>
