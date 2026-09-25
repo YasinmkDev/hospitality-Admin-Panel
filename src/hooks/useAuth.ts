@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const MOCK_AUTH_STORAGE_KEY = "cizaro_mock_auth_session";
-const MOCK_OTP_STORAGE_KEY = "cizaro_mock_otp_data";
+const MOCK_AUTH_STORAGE_KEY = "hms_mock_auth_session";
+const MOCK_OTP_STORAGE_KEY = "hms_mock_otp_data";
 
 interface OtpData {
   email: string;
@@ -11,7 +11,7 @@ interface OtpData {
   expiresAt: number;
 }
 
-function createMockSession(email = "admin@cizaro.hotel", name = "Admin Manager"): Session {
+function createMockSession(email = "admin@hotel.com", name = "Admin Manager"): Session {
   const user: User = {
     id: `usr_${email.replace(/[^a-zA-Z0-9]/g, "_")}`,
     app_metadata: { provider: "email" },
@@ -88,7 +88,7 @@ export function useAuth() {
     }
     // Simulate brief network delay
     await new Promise((r) => setTimeout(r, 450));
-    const newSession = createMockSession(email || "admin@cizaro.hotel");
+    const newSession = createMockSession(email || "admin@hotel.com");
     localStorage.setItem(MOCK_AUTH_STORAGE_KEY, JSON.stringify(newSession));
     setSession(newSession);
     return { data: { session: newSession, user: newSession.user }, error: null };
@@ -108,7 +108,7 @@ export function useAuth() {
     }
     await new Promise((r) => setTimeout(r, 550));
     const name = options?.data?.name || "Manager";
-    const newSession = createMockSession(email || "admin@cizaro.hotel", name);
+    const newSession = createMockSession(email || "admin@hotel.com", name);
     localStorage.setItem(MOCK_AUTH_STORAGE_KEY, JSON.stringify(newSession));
     setSession(newSession);
     return { data: { session: newSession, user: newSession.user }, error: null };
@@ -170,7 +170,7 @@ export function useAuth() {
       return supabase.auth.updateUser({ password: newPassword });
     }
     await new Promise((r) => setTimeout(r, 500));
-    const targetEmail = email || session?.user?.email || "admin@cizaro.hotel";
+    const targetEmail = email || session?.user?.email || "admin@hotel.com";
     const updatedSession = createMockSession(targetEmail);
     localStorage.setItem(MOCK_AUTH_STORAGE_KEY, JSON.stringify(updatedSession));
     setSession(updatedSession);

@@ -1,4 +1,4 @@
-// Types mirror Cizaro API payload shapes
+// Core entity types for the Hospitality Management System
 
 export type UUID = string;
 

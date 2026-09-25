@@ -33,7 +33,7 @@ const defaultDataMap: Record<string, unknown[]> = {
 };
 
 function getLocalStore<T>(table: string): T[] {
-  const storageKey = `cizaro_table_${table}`;
+  const storageKey = `hms_table_${table}`;
   try {
     const raw = localStorage.getItem(storageKey);
     if (raw) {
@@ -49,7 +49,7 @@ function getLocalStore<T>(table: string): T[] {
 }
 
 function setLocalStore<T>(table: string, data: T[]): void {
-  const storageKey = `cizaro_table_${table}`;
+  const storageKey = `hms_table_${table}`;
   try {
     localStorage.setItem(storageKey, JSON.stringify(data));
   } catch (err) {
@@ -59,7 +59,7 @@ function setLocalStore<T>(table: string, data: T[]): void {
 
 export function resetLocalStoreToDefaults(): void {
   Object.keys(defaultDataMap).forEach((table) => {
-    const storageKey = `cizaro_table_${table}`;
+    const storageKey = `hms_table_${table}`;
     localStorage.setItem(storageKey, JSON.stringify(defaultDataMap[table]));
   });
 }

@@ -18,6 +18,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { GOLD, NAVY, NAVY_2 } from "@/lib/theme";
 
+// Guest demo account — auto-created on first use
+const GUEST_EMAIL = "guest@hotel-demo.com";
+const GUEST_PASSWORD = "guest1234";
+
 type AuthMode = "login" | "signup" | "forgot-password" | "otp" | "reset-password";
 
 export default function Login() {
@@ -92,7 +96,7 @@ export default function Login() {
   // Quick fill demo credentials
   const fillDemoCredentials = (role: "admin" | "manager") => {
     if (role === "admin") {
-      setEmail("admin@cizaro.hotel");
+      setEmail("admin@hotel.com");
       setPassword("password123");
     } else {
       setEmail("concierge@aurora.com");
@@ -146,6 +150,43 @@ export default function Login() {
       const digits = pasted.split("");
       setOtp(digits);
       otpInputRefs.current[5]?.focus();
+    }
+  };
+
+  // Guest login — auto-creates the account if it doesn't exist yet
+  const handleGuestLogin = async () => {
+    if (loading) return;
+    setError("");
+    setLoading(true);
+    try {
+      // Try sign in first
+      const { error: signInErr } = await signIn(GUEST_EMAIL, GUEST_PASSWORD);
+      if (!signInErr) {
+        setSuccessMessage("Signed in as Guest. Loading dashboard...");
+        setTimeout(() => navigate("/"), 400);
+        return;
+      }
+      // Account doesn't exist — create it automatically
+      const { error: signUpErr } = await signUp(GUEST_EMAIL, GUEST_PASSWORD, {
+        data: { name: "Guest User", property: "Demo Property" },
+      });
+      if (signUpErr) {
+        setError("Guest login unavailable: " + signUpErr.message);
+        setLoading(false);
+        return;
+      }
+      // Sign in with the newly created account
+      const { error: retryErr } = await signIn(GUEST_EMAIL, GUEST_PASSWORD);
+      if (retryErr) {
+        setError("Guest account created — disable email confirmation in Supabase Auth settings, then try again.");
+        setLoading(false);
+        return;
+      }
+      setSuccessMessage("Signed in as Guest. Loading dashboard...");
+      setTimeout(() => navigate("/"), 400);
+    } catch {
+      setError("Guest login failed.");
+      setLoading(false);
     }
   };
 
@@ -345,7 +386,7 @@ export default function Login() {
             </div>
             <div>
               <div className="text-xl font-bold tracking-wide font-serif text-white flex items-center gap-2">
-                Cizaro <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider bg-[#C9A66B]/20 text-[#C9A66B] font-sans font-semibold">Grand Suite</span>
+                LuxuryStar <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider bg-[#C9A66B]/20 text-[#C9A66B] font-sans font-semibold">Grand Suite</span>
               </div>
               <div className="text-xs text-slate-400 tracking-widest uppercase">Hospitality Management System</div>
             </div>
@@ -430,7 +471,7 @@ export default function Login() {
               C
             </div>
             <div>
-              <div className="text-lg font-bold font-serif text-[#0B1F3A]">Cizaro</div>
+              <div className="text-lg font-bold font-serif text-[#0B1F3A]">LuxuryStar</div>
               <div className="text-[10px] text-slate-500 uppercase tracking-wider">Hospitality Admin</div>
             </div>
           </div>
@@ -482,7 +523,7 @@ export default function Login() {
               >
                 <div className="mb-6">
                   <h2 className="text-2xl font-serif font-bold text-[#0B1F3A] tracking-tight">
-                    Welcome to Cizaro
+                    Welcome to LuxuryStar
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
                     Sign in to access your hotel command center.
@@ -589,7 +630,31 @@ export default function Login() {
                   </button>
                 </form>
 
-                <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+                {/* Guest access divider */}
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="flex-1 h-px bg-slate-100" />
+                  <span className="text-[11px] text-slate-400 font-medium">or</span>
+                  <div className="flex-1 h-px bg-slate-100" />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleGuestLogin}
+                  className="w-full mt-3 py-2.5 px-4 rounded-xl font-medium text-sm transition border-2 border-dashed disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:bg-[#C9A66B]/5 hover:border-[#C9A66B]"
+                  style={{ borderColor: "#e2e8f0", color: NAVY, background: "transparent" }}
+                >
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="text-base">👤</span>
+                      Continue as Guest
+                    </>
+                  )}
+                </button>
+
+                <div className="mt-5 pt-4 border-t border-slate-100 text-center">
                   <p className="text-xs text-slate-500">
                     Need new property access?{" "}
                     <button
@@ -1120,7 +1185,7 @@ export default function Login() {
 
         {/* Security watermark footer */}
         <div className="w-full max-w-md mt-6 text-center text-[11px] text-slate-400 flex items-center justify-center gap-2">
-          <span>&copy; {new Date().getFullYear()} Cizaro Hospitality Systems Inc.</span>
+          <span>&copy; {new Date().getFullYear()} LuxuryStar Hospitality Systems Inc.</span>
           <span>&bull;</span>
           <span>Encrypted Gateway</span>
         </div>
