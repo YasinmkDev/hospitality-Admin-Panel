@@ -23,6 +23,33 @@ A modern, full-featured administration dashboard for hospitality management buil
 - **Responsive Design** - Mobile-first approach with adaptive layouts
 - **Testing Ready** - Vitest configuration with React Testing Library
 
+## Screens
+
+Captured from the local dev server at desktop (1280×800) and mobile (390×844) sizes, in route order. These screens show the app's built-in demo dataset: with no Supabase credentials configured, the app falls back to its local sample data and mock auth (the login screen itself notes "Demo Sandbox Active: Pre-loaded with hotel dataset"), so no live backend was needed for these captures. The Room Rates screenshots show the Table view: the default Matrix view stays on its loading skeleton (in `src/pages/RoomRates.tsx`, the matrix loader never clears the loading flag), while Table view loads the real tariff records.
+
+| Screen | Desktop | Mobile |
+|--------|---------|--------|
+| Dashboard (`/`) | ![Dashboard desktop](docs/screenshots/dashboard-desktop.png) | ![Dashboard mobile](docs/screenshots/dashboard-mobile.png) |
+| Login (`/login`) | ![Login desktop](docs/screenshots/login-desktop.png) | ![Login mobile](docs/screenshots/login-mobile.png) |
+| Sign up (`/signup`) | ![Sign up desktop](docs/screenshots/signup-desktop.png) | ![Sign up mobile](docs/screenshots/signup-mobile.png) |
+| Forgot password (`/forgot-password`) | ![Forgot password desktop](docs/screenshots/forgot-password-desktop.png) | ![Forgot password mobile](docs/screenshots/forgot-password-mobile.png) |
+| Reset password (`/reset-password`) | ![Reset password desktop](docs/screenshots/reset-password-desktop.png) | ![Reset password mobile](docs/screenshots/reset-password-mobile.png) |
+| Floors (`/floors`) | ![Floors desktop](docs/screenshots/floors-desktop.png) | ![Floors mobile](docs/screenshots/floors-mobile.png) |
+| Rooms (`/rooms`) | ![Rooms desktop](docs/screenshots/rooms-desktop.png) | ![Rooms mobile](docs/screenshots/rooms-mobile.png) |
+| Floor Plan (`/rooms/layout`) | ![Floor plan desktop](docs/screenshots/rooms-layout-desktop.png) | ![Floor plan mobile](docs/screenshots/rooms-layout-mobile.png) |
+| Beds (`/beds`) | ![Beds desktop](docs/screenshots/beds-desktop.png) | ![Beds mobile](docs/screenshots/beds-mobile.png) |
+| Room Types (`/room-types`) | ![Room types desktop](docs/screenshots/room-types-desktop.png) | ![Room types mobile](docs/screenshots/room-types-mobile.png) |
+| Room Features (`/room-features`) | ![Room features desktop](docs/screenshots/room-features-desktop.png) | ![Room features mobile](docs/screenshots/room-features-mobile.png) |
+| Room Products (`/room-products`) | ![Room products desktop](docs/screenshots/room-products-desktop.png) | ![Room products mobile](docs/screenshots/room-products-mobile.png) |
+| Room Rates (`/room-rates`, Table view) | ![Room rates desktop](docs/screenshots/room-rates-desktop.png) | ![Room rates mobile](docs/screenshots/room-rates-mobile.png) |
+| Seasons (`/seasons`) | ![Seasons desktop](docs/screenshots/seasons-desktop.png) | ![Seasons mobile](docs/screenshots/seasons-mobile.png) |
+| Reservations (`/reservations`) | ![Reservations desktop](docs/screenshots/reservations-desktop.png) | ![Reservations mobile](docs/screenshots/reservations-mobile.png) |
+| DNR Registry (`/reservations/dnr`) | ![DNR desktop](docs/screenshots/reservations-dnr-desktop.png) | ![DNR mobile](docs/screenshots/reservations-dnr-mobile.png) |
+| Housekeeping (`/housekeeping`) | ![Housekeeping desktop](docs/screenshots/housekeeping-desktop.png) | ![Housekeeping mobile](docs/screenshots/housekeeping-mobile.png) |
+| Reminders (`/reminders`) | ![Reminders desktop](docs/screenshots/reminders-desktop.png) | ![Reminders mobile](docs/screenshots/reminders-mobile.png) |
+| Settings (`/settings`) | ![Settings desktop](docs/screenshots/settings-desktop.png) | ![Settings mobile](docs/screenshots/settings-mobile.png) |
+| Not Found (unknown URL) | ![Not found desktop](docs/screenshots/not-found-desktop.png) | ![Not found mobile](docs/screenshots/not-found-mobile.png) |
+
 ## Tech Stack
 
 | Category | Technologies |
